@@ -1,0 +1,5 @@
+# ignore contents of bin directory except for .igs files
+bin/**
+!bin/*.igs
+build/**
+build.bat

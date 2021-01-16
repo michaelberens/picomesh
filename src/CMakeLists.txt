@@ -1,0 +1,11 @@
+set(SOURCE_PM
+    ${SOURCE_PM}
+    PARENT_SCOPE
+)
+
+set(HEADER_PM
+    ${HEADER_PM}
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/picomesh.h
+    PARENT_SCOPE
+)
