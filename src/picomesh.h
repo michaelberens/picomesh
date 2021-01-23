@@ -18,22 +18,29 @@ public:
 
 private:
 
-	struct DataRecord
-	{
-		std::shared_ptr<char> ptr;
-		uint8_t dim;
-        size_t stride;          //< 
-        size_t size;            //< length of the aux data in 'stride' bytes
-	};
-
 	std::vector<Node>     m_nodes;			//< all nodes of the mesh
 	std::vector<HalfEdge> m_edges;		    //< all edge connection data
 	std::vector<Face>     m_faces;			//< all face connection data
 
+    struct DataRecord                       //< descriptor of data attached to the mesh graph
+    {
+        enum DataLocation : size_t          //< size_t for alignment reasons
+        {
+            PMESH_NODE_DATA = 0,
+            PMESH_EDGE_DATA = 1,
+            PMESH_FACE_DATA = 2
+        };
+
+        std::shared_ptr<void> m_data_ptr;   //< pointer to user supplied data
+        DataLocation m_attach_at;           //< is data attached to nodes/edges/faces?
+        size_t m_stride;                    //< sizeof one element of the data
+        size_t m_size;                      //< size of the aux data in 'stride' elements
+    };
+
     std::vector<DataRecord> m_data;         //< descriptors of data attached to elements
                                             //  of the half-edge mesh
 
-    const Face outside;
+    const Index_T outside_face = 0;
 
 public:
 
@@ -44,10 +51,23 @@ public:
 
         friend class HalfEdgeMesh<Index_T>;
 
-		Index_T m_org_edge;	//< one half edge originating from this vertex
+		Index_T m_org_edge = 0;	//< one half edge originating from this vertex
+
+        Index_T m_index = 0;    //< index of the node in m_nodes array
 
     public:
 
+        // returns this half edge's own index
+        Index_T index() { return this->m_index; }
+
+        // returns the data attached to this half edge
+        template<typename Data_T>
+        Data_T data(Index_T data_idx)
+        {
+            return std::static_pointer_cast<Data_T>(m_data[data_idx].m_data_ptr)[m_index];
+        }
+
+        // returns a reference to an edge originating at the node
         HalfEdge& edge() { return m_edges[m_org_edge]; }
 	};
 
@@ -58,14 +78,23 @@ public:
 
 		friend class HalfEdgeMesh<Index_T>;
 
-		Index_T m_org;			//< vertex the half edge originates from
+		Index_T m_org = 0;   	//< vertex the half edge originates from
 
-		Index_T m_next;			//< index of next half edge
-		Index_T m_twin;			//< index of twin half edge
-		Index_T m_left;			//< face 'left' of the edge (face edges CCW)
+		Index_T m_next = 0;		//< index of next half edge
+		Index_T m_twin = 0;		//< index of twin half edge
+		Index_T m_left = 0;		//< face 'left' of the edge (face edges CCW)
+
+        Index_T m_index = 0;    //< index of the edge in m_edges array
 
 		// returns this half edge's own index
-		Index_T index() { return this->twin()->m_twin; }
+		Index_T index() { return this->m_index; }
+
+        // returns the data attached to this half edge
+        template<typename Data_T>
+        Data_T data(Index_T data_idx)
+        {
+            return std::static_pointer_cast<Data_T>(m_data[data_idx].m_data_ptr)[m_index];
+        }
 
 	public:
 
@@ -95,7 +124,7 @@ public:
 			return ((m_face[left_face] == outside_face) || (m_face[twin().left_face] == outside_face));
 		}
 
-        // flip edge (no operation if edge or twin is boundary edge)
+        // flip edge (no operation if edge or twin is boundary edge, or adjacent faces aren't triangles)
         void flip()
         {
             if (this->is_boundary()) return;        
@@ -124,13 +153,40 @@ public:
     private:
         friend class HalfEdgeMesh<Index_T>;
 
-		Index_T m_face_edge;
+		Index_T m_face_edge = 0;        //< one inner edge of the face
+        Index_T m_index = 0;            //< index of this face in m_faces
 
     public:
 
+        // returns this face's own index
+        Index_T index() { return m_index; };
+
+        // returns data associated with the face
+        template<typename Data_T>
+        Data_T data(Index_T data_idx)
+        {
+            return std::static_pointer_cast<Data_T>(m_data[data_idx].m_data_ptr)[m_index];
+        }
+
+        // returns a reference to one of the face's inner edges
         HalfEdge& edge() { return m_edges[m_face_edge]; }
 
+        // returns the number of edges that make up the face
+        Index_T N_edges()
+        {
+            Index_T result = 0;
 
+            HalfEdge sbegin = m_edges[m_face_edge];
+            HalfEdge sedge  = m_edges[m_face_edge];
+
+            do
+            {
+                sedge = sedge.next();
+            }
+            while (sedge != sbegin);
+
+            return result;
+        }
 	};
 
 	HalfEdgeMesh() 
@@ -140,17 +196,37 @@ public:
 
 	~HalfEdgeMesh()
 	{
-
+    
 	}
 
-    Index_T attach<Data_T>(std::shared_ptr<Data_T> data_ptr, Index_T data_size)
+    // attach a data array to parts of the mesh (nodes, edges, faces), returns an index for the data
+    template<typename Data_T>
+    Index_T attach(std::shared_ptr<Data_T> data_ptr, Index_T data_size, typename DataRecord::DataLocation attach_at)
     {
-        
+        DataRecord tmp;
+        tmp.m_data_ptr = data_ptr;
+        tmp.m_attach_at = attach_at;
+        tmp.m_stride = sizeof(Data_T);
+        tmp.m_size = data_size;
+
+        m_data.push_back(tmp);
+
+        return m_data.size() - 1;
     }
 
-    void detach<Data_T>(Index_T location)
+    // return a shared pointer to the attached data array with index 'data_idx'
+    template<typename Data_T>
+    std::shared_ptr<Data_T> data(Index_T data_idx)
     {
+        return std::static_pointer_cast<Data_T>(m_data[data_idx].m_data_ptr);
+    }
 
+    // detaches the data with index 'data_idx' from the object
+    template<typename Data_T>
+    void detach(Index_T data_idx)
+    {
+        // TODO: do proper cleanup
+        m_data[data_idx].m_data_ptr.reset();
     }
 
 private:
