@@ -8,8 +8,8 @@ I like small and portable bits of code that can be used without engineering depe
 Currently, the tiny thing is not feature complete but the interface is defined. So the completed and work-in-progress features are:
 
 - [x] Half Edge triangle mesh with approachable interface
+- [x] Attaching arbitrary data to Nodes, Edges or Faces
 - [ ] Half Edge triangle mesh construction from triangle soup
-- [ ] Attaching arbitrary data to Nodes, Edges or Faces
 - [ ] Comfortable interfaces for iterating/processing rings, stars on the mesh 
   
 Additionally, I want to implement self-contained "support" headers that offer additional functionality, without depending on the base header (via template-based interface definitions, supplied by the user). Features planned for these are:
