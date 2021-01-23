@@ -20,7 +20,7 @@ private:
 
 	struct DataRecord
 	{
-        std::shared_ptr<char>
+		std::shared_ptr<char> ptr;
 		uint8_t dim;
         size_t stride;          //< 
         size_t size;            //< length of the aux data in 'stride' bytes
@@ -89,19 +89,33 @@ public:
 			return (this->index() == b.index()) ? true : false;
 		}
 
+		// is this edge part of a mesh boundary?
+		bool is_boundary()
+		{
+			return ((m_face[left_face] == outside_face) || (m_face[twin().left_face] == outside_face));
+		}
+
         // flip edge (no operation if edge or twin is boundary edge)
         void flip()
         {
             if (this->is_boundary()) return;        
 
+			// temporarily store source info (indices of faces and edges of both faces)
+			Index_T face_ti = this->twin().m_left; Index_T face_i = this->m_left;
+			Index_T e0 = this->index(); Index_T e1 = this->next().index(); Index_T e2 = this->next().next().index();
+			Index_T f0 = this->twin().index(); Index_T f1 = this->twin().next().index(); Index_T f2 = this->twin().next().next().index();
 
+			// reassign nodes on flipped edge
+			m_edges[e0].m_org = m_edges[e2].m_org; m_edges[f0].m_org = m_edges[e1].m_org;
+
+			// reassign next edges on the six participating half-edges
+			m_edges[e0].m_next = f2; m_edges[e1].m_next = e0; m_edges[e2].m_next = f1;
+			m_edges[f0].m_next = e2; m_edges[f1].m_next = f0; m_edges[f2].m_next = e1;
+
+			// reassign adjacent faces to edges within the face
+			m_faces[face_ti].m_face_edge = e0; m_faces[face_i].m_face_edge = f0;
         }
 
-        // is this edge part of a mesh boundary?
-        bool is_boundary()
-        {
-            return ((m_face[left_face] == outside_face) || (m_face[twin().left_face] == outside_face));
-        }
 	};
 
 	// contains a link back into the edge structure
@@ -115,6 +129,8 @@ public:
     public:
 
         HalfEdge& edge() { return m_edges[m_face_edge]; }
+
+
 	};
 
 	HalfEdgeMesh() 
