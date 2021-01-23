@@ -2,7 +2,7 @@
 #define PICOMESH_H_
 
 #include <vector>
-
+#include <memory>
 
 namespace pmesh {
 
@@ -24,22 +24,38 @@ template<typename Index_T = std::size_t>		//< TODO: template metaprogramming che
 class HalfEdgeMesh
 {
 public:
-	//forward declaration
+	//forward declarations
 	class Node;
 	class HalfEdge;
 	class Face;
 
 private:
 
-	std::vector<HalfEdge> m_edges;		//< all edge connection data
-	std::vector<Face> m_faces;			//< all face connection data
+	struct AuxDataRecord
+	{
+		uint8_t dim;
+        size_t stride;          //< 
+        size_t size;            //< length of the aux data in 'stride' bytes
+	};
+
+	std::vector<Node>     m_nodes;			//< all nodes of the mesh
+	std::vector<HalfEdge> m_edges;		    //< all edge connection data
+	std::vector<Face>     m_faces;			//< all face connection data
 
 public:
 
 	// contains a link back into the edge structure
 	class Node
 	{
-		Index_T org_edge;	//< one half edge originating from this vertex
+	private:
+
+        friend class HalfEdgeMesh<Index_T>;
+
+		Index_T m_org_edge;	//< one half edge originating from this vertex
+
+    public:
+
+        HalfEdge& edge() { return m_edges[m_org_edge]; }
 	};
 
 	// contains data and methods related to traversing edges
@@ -49,11 +65,11 @@ public:
 
 		friend class HalfEdgeMesh<Index_T>;
 
-		Index_T org_vertex;			//< vertex the half edge originates from
+		Index_T m_org;			//< vertex the half edge originates from
 
-		Index_T next_edge;			//< index of next half edge
-		Index_T twin_edge;			//< index of twin half edge
-		Index_T left_face;			//< face 'left' of the edge (face edges CCW)
+		Index_T m_next;			//< index of next half edge
+		Index_T m_twin;			//< index of twin half edge
+		Index_T m_left;			//< face 'left' of the edge (face edges CCW)
 
 		// returns this half edge's own index
 		Index_T index() { return this->twin()->twin_edge; }
@@ -61,29 +77,61 @@ public:
 	public:
 
 		// return next half edge by reference
-		HalfEdge& next() { return m_edges[next_edge]; }
+		HalfEdge& next() { return m_edges[m_next]; }
 		
 		// return twin half edge by reference
-		HalfEdge& twin() { return m_edges[twin_edge]; }
+		HalfEdge& twin() { return m_edges[m_twin]; }
 
 		// return previous half edge by reference
 		HalfEdge& prev() { return this->twin().next().twin(); }
+
+		Node& org() { return m_nodes[org_vertex]; }
+
+		Node& hed() { return next().org(); }
 
 		bool operator==(HalfEdge& b) const
 		{
 			return (this->index() == b.index()) ? true : false;
 		}
+
+        // flip edge (no operation if edge or twin is boundary edge)
+        void flip()
+        {
+            if (this->is_boundary()) return;        
+
+
+        }
+
+        // is this edge part of a mesh boundary?
+        bool is_boundary()
+        {
+            return ((m_face[left_face] == outside_face) || (m_face[twin().left_face] == outside_face));
+        }
 	};
 
+	// contains a link back into the edge structure
 	class Face
 	{
-		Index_T edge;
+    private:
+        friend class HalfEdgeMesh<Index_T>;
+
+		Index_T m_face_edge;
+
+    public:
+
+        HalfEdge& edge() { return m_edges[m_face_edge]; }
 	};
 
 	HalfEdgeMesh() 
 	{
 
 	}
+
+	~HalfEdgeMesh()
+	{
+
+	}
+
 
 };
 
