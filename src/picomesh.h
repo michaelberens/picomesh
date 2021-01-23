@@ -7,19 +7,6 @@
 namespace pmesh {
 
 
-/*
-template<typename Index_T = std::size_t>
-class HalfEdgeIterator
-{
-private:
-	Index_T offset;						//< position in HalfEdgeMesh edge array
-	HalfEdgeMesh &parent;				//< 
-
-public:
-	HalfEdgeIterator(HalfEdgeMesh)
-};
-*/
-
 template<typename Index_T = std::size_t>		//< TODO: template metaprogramming check ::is_integer ::is_signed
 class HalfEdgeMesh
 {
@@ -31,8 +18,9 @@ public:
 
 private:
 
-	struct AuxDataRecord
+	struct DataRecord
 	{
+        std::shared_ptr<char>
 		uint8_t dim;
         size_t stride;          //< 
         size_t size;            //< length of the aux data in 'stride' bytes
@@ -41,6 +29,11 @@ private:
 	std::vector<Node>     m_nodes;			//< all nodes of the mesh
 	std::vector<HalfEdge> m_edges;		    //< all edge connection data
 	std::vector<Face>     m_faces;			//< all face connection data
+
+    std::vector<DataRecord> m_data;         //< descriptors of data attached to elements
+                                            //  of the half-edge mesh
+
+    const Face outside;
 
 public:
 
@@ -72,7 +65,7 @@ public:
 		Index_T m_left;			//< face 'left' of the edge (face edges CCW)
 
 		// returns this half edge's own index
-		Index_T index() { return this->twin()->twin_edge; }
+		Index_T index() { return this->twin()->m_twin; }
 
 	public:
 
@@ -85,8 +78,10 @@ public:
 		// return previous half edge by reference
 		HalfEdge& prev() { return this->twin().next().twin(); }
 
+        // return node that the edge originates from by reference
 		Node& org() { return m_nodes[org_vertex]; }
 
+        // return node that the edge points to by reference
 		Node& hed() { return next().org(); }
 
 		bool operator==(HalfEdge& b) const
@@ -131,6 +126,19 @@ public:
 	{
 
 	}
+
+    Index_T attach<Data_T>(std::shared_ptr<Data_T> data_ptr, Index_T data_size)
+    {
+        
+    }
+
+    void detach<Data_T>(Index_T location)
+    {
+
+    }
+
+private:
+
 
 
 };
