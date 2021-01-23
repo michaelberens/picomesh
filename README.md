@@ -19,3 +19,6 @@ Additionally, I want to implement self-contained "support" headers that offer ad
 - [ ] Calculation of discrete differential operators (e.g. Laplace-Beltrami) or integrals and differentials (divergence, rotation, gradient)
 - [ ] Quasi-Isometric Parameterization (heat method)
   
+## Why?
+
+Why make another library for dealing with triangle meshes? Large libraries can be either intimidating to pick up or take lots of time to extract the important features from. Dealing with the biolerplate that surrounds the useful parts can be a major time sink. Thus, I'd like to make small geometry processing 'modules' that can work together but can easily be fed data with STL containers.
